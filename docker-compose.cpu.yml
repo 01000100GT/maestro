@@ -1,5 +1,7 @@
+# 功能说明: Docker Compose CPU 版配置文件。此文件定义了 MAESTRO 应用程序在仅 CPU 环境下运行所需的所有 Docker 服务，包括 PostgreSQL 数据库、Nginx 反向代理、后端、前端、文档处理器和命令行工具，且不包含任何 GPU 相关配置。
+
 services:
-  # PostgreSQL database
+  # PostgreSQL 数据库
   postgres:
     image: pgvector/pgvector:pg15
     container_name: maestro-postgres
@@ -21,7 +23,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Nginx reverse proxy - single entry point for the application
+  # Nginx 反向代理 - 应用程序的单一入口点
   nginx:
     build:
       context: ./nginx
@@ -57,23 +59,23 @@ services:
       - MAX_WORKER_THREADS=${MAX_WORKER_THREADS:-10}
       - TZ=${TZ:-UTC}
       - LOG_LEVEL=${LOG_LEVEL:-ERROR}
-      # Force CPU mode
+      # 强制 CPU 模式
       - FORCE_CPU_MODE=true
       - PREFERRED_DEVICE_TYPE=cpu
-      # CORS configuration for reverse proxy support
+      # 反向代理支持的 CORS 配置
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-*}
-      # Allow all origins in development mode when using nginx proxy
+      # 在开发模式下使用 Nginx 代理时允许所有源
       - ALLOW_CORS_WILDCARD=${ALLOW_CORS_WILDCARD:-true}
-      # PostgreSQL connection
+      # PostgreSQL 连接
       - DATABASE_URL=postgresql://${POSTGRES_USER:-maestro_user}:${POSTGRES_PASSWORD:-maestro_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-maestro_db}
-      # Admin credentials for initial setup
+      # 用于初始设置的管理员凭据
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
-      # JWT Secret for authentication
+      # 用于身份验证的 JWT 密钥
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-this}
     networks:
       - maestro-network
-    # No GPU configuration for CPU-only mode
+    # CPU-only 模式下没有 GPU 配置
 
   frontend:
     build:
@@ -86,7 +88,7 @@ services:
     networks:
       - maestro-network
     environment:
-      # API URLs (optional - using relative URLs through nginx proxy by default)
+      # API URL (可选 - 默认通过 Nginx 代理使用相对 URL)
       - VITE_SERVER_TIMEZONE=${VITE_SERVER_TIMEZONE:-UTC}
       - TZ=${TZ:-UTC}
       - LOG_LEVEL=${LOG_LEVEL:-ERROR}
@@ -112,12 +114,12 @@ services:
     environment:
       - TZ=${TZ:-UTC}
       - LOG_LEVEL=${LOG_LEVEL:-ERROR}
-      # PostgreSQL connection - same as backend
+      # PostgreSQL 连接 - 与后端相同
       - DATABASE_URL=postgresql://${POSTGRES_USER:-maestro_user}:${POSTGRES_PASSWORD:-maestro_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-maestro_db}
-      # Force CPU mode
+      # 强制 CPU 模式
       - FORCE_CPU_MODE=true
       - PREFERRED_DEVICE_TYPE=cpu
-    # No GPU configuration for CPU-only mode
+    # CPU-only 模式下没有 GPU 配置
 
   cli:
     build:
@@ -142,12 +144,12 @@ services:
     environment:
       - TZ=${TZ:-UTC}
       - LOG_LEVEL=${LOG_LEVEL:-ERROR}
-      # Force CPU mode
+      # 强制 CPU 模式
       - FORCE_CPU_MODE=true
       - PREFERRED_DEVICE_TYPE=cpu
-    # No GPU configuration for CPU-only mode
+    # CPU-only 模式下没有 GPU 配置
 
-  # Optional local LLM service (uncomment if using)
+  # 可选的本地 LLM 服务 (如果使用则取消注释)
   # ollama:
   #   image: ollama/ollama:latest
   #   container_name: maestro-ollama
@@ -168,7 +170,7 @@ volumes:
       type: none
       o: bind
       device: ./maestro_data
-  # Uncomment if using local LLM
+  # 如果使用本地 LLM 则取消注释
   # ollama-data:
   #   driver: local
 

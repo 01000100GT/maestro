@@ -1,89 +1,91 @@
 #!/bin/bash
 
-# Maestro startup script with automatic GPU detection
+# 功能说明: MAESTRO 启动脚本，包含自动 GPU 检测功能。该脚本用于启动 MAESTRO 应用程序及其所有依赖服务。
+
+# Maestro 启动脚本，带自动 GPU 检测功能
 
 set -e
 
-echo "[START] Starting Maestro..."
+echo "[START] 正在启动 Maestro..."
 
-# Source GPU detection
+# 来源 GPU 检测
 source ./detect_gpu.sh
 
-# Export GPU availability for docker-compose
+# 导出 Docker Compose 的 GPU 可用性
 if [ "$GPU_SUPPORT" = "nvidia" ]; then
     export GPU_AVAILABLE=true
-    echo "[GPU] NVIDIA GPU detected - enabling GPU support"
+    echo "[GPU] 检测到 NVIDIA GPU - 启用 GPU 支持"
     COMPOSE_FILES="-f docker-compose.yml -f docker-compose.gpu.yml"
 else
     export GPU_AVAILABLE=false
     if [ "$GPU_SUPPORT" = "mac" ]; then
-        echo "[INFO] macOS detected - running in CPU mode"
+        echo "[信息] 检测到 macOS - 运行在 CPU 模式"
     else
-        echo "[INFO] No GPU detected - running in CPU mode"
+        echo "[信息] 未检测到 GPU - 运行在 CPU 模式"
     fi
     COMPOSE_FILES="-f docker-compose.yml"
 fi
 
-# Check if .env file exists
+# 检查 .env 文件是否存在
 if [ ! -f .env ]; then
-    echo "[WARN] No .env file found. Creating from .env.example..."
+    echo "[警告] 未找到 .env 文件。正在从 .env.example 创建..."
     if [ -f .env.example ]; then
         cp .env.example .env
-        echo "[OK] Created .env file. Please review and update the settings."
+        echo "[确定] 已创建 .env 文件。请检查并更新设置。"
     else
-        echo "[ERROR] No .env.example file found. Please create a .env file."
+        echo "[错误] 未找到 .env.example 文件。请创建 .env 文件。"
         exit 1
     fi
 fi
 
-# Source environment variables
+# 来源环境变量
 export $(grep -v '^#' .env | xargs)
 
-# Check if images exist, build if needed
-echo "[CHECK] Checking Docker images..."
+# 检查镜像是否存在，如果需要则构建
+echo "[检查] 正在检查 Docker 镜像..."
 if ! docker images | grep -q "maestro-backend"; then
-    echo "[BUILD] Building Docker images for first time setup..."
+    echo "[构建] 正在为首次设置构建 Docker 镜像..."
     docker compose $COMPOSE_FILES build
-    echo "[BUILD] Building CLI image..."
+    echo "[构建] 正在构建 CLI 镜像..."
     docker compose build cli
 else
-    # Check if CLI image exists
+    # 检查 CLI 镜像是否存在
     if ! docker images | grep -q "maestro-cli"; then
-        echo "[BUILD] Building CLI image..."
+        echo "[构建] 正在构建 CLI 镜像..."
         docker compose build cli
     fi
 fi
 
-# Start services
-echo "[DOCKER] Starting Docker services..."
+# 启动服务
+echo "[DOCKER] 正在启动 Docker 服务..."
 docker compose $COMPOSE_FILES up -d
 
-# Check if services are running
+# 检查服务是否正在运行
 sleep 5
 if docker compose ps | grep -q "Up"; then
-    echo "[OK] Maestro is running!"
+    echo "[确定] Maestro 正在运行!"
     echo ""
-    echo "[ACCESS] Access MAESTRO at:"
-    # Use the new nginx proxy port if available, fallback to old config for backward compatibility
+    echo "[访问] 访问 MAESTRO 地址:"
+    # 如果新的 nginx 代理端口可用，则使用，否则回退到旧配置以实现向后兼容
     if [ -n "${MAESTRO_PORT}" ]; then
-        if [ "${MAESTRO_PORT}" = "80" ]; then
+        if [ "${MASTRO_PORT}" = "80" ]; then
             echo "         http://localhost"
         else
             echo "         http://localhost:${MAESTRO_PORT}"
         fi
     else
-        # Backward compatibility
-        echo "         Frontend: http://${FRONTEND_HOST:-localhost}:${FRONTEND_PORT:-3030}"
-        echo "         Backend API: http://${BACKEND_HOST:-localhost}:${BACKEND_PORT:-8001}"
+        # 向后兼容
+        echo "         前端: http://${FRONTEND_HOST:-localhost}:${FRONTEND_PORT:-3030}"
+        echo "         后端 API: http://${BACKEND_HOST:-localhost}:${BACKEND_PORT:-8001}"
     fi
     echo ""
-    echo "[STATUS] GPU Available: ${GPU_AVAILABLE}"
+    echo "[状态] GPU 可用: ${GPU_AVAILABLE}"
     echo ""
-    echo "[NOTE] IMPORTANT - First Run:"
-    echo "       Initial startup takes 5-10 minutes to download AI models"
-    echo "       Monitor progress with: docker compose logs -f maestro-backend"
-    echo "       Wait for message: Application startup complete"
+    echo "[注意] 重要 - 首次运行:"
+    echo "       首次启动需要 5-10 分钟下载 AI 模型"
+    echo "       通过以下命令监控进度: docker compose logs -f maestro-backend"
+    echo "       等待消息: Application startup complete"
 else
-    echo "[ERROR] Failed to start services. Check logs with: docker compose logs"
+    echo "[错误] 启动服务失败。请查看日志: docker compose logs"
     exit 1
 fi

@@ -1,158 +1,160 @@
 #!/bin/bash
 
-# MAESTRO Direct CLI Helper Script
-# This script provides direct document processing with live feedback
+# 功能说明: MAESTRO 直接命令行辅助脚本。该脚本提供带实时反馈的文档直接处理功能，绕过后台队列，同步处理文档，并提供实时进度更新。
+
+# MAESTRO 直接命令行辅助脚本
+# 该脚本提供带实时反馈的文档直接处理功能
 
 set -e
 
-# Colors for output
+# 输出颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m' # 无颜色
 
-# Function to print colored output
+# 打印带颜色输出的函数
 print_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}[信息]${NC} $1"
 }
 
 print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[成功]${NC} $1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[警告]${NC} $1"
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[错误]${NC} $1"
 }
 
-# Function to check if Docker Compose is available
+# 检查 Docker Compose 是否可用的函数
 check_docker_compose() {
     if ! command -v docker &> /dev/null; then
-        print_error "Docker is not installed or not in PATH"
+        print_error "Docker 未安装或不在 PATH 中"
         exit 1
     fi
     
     if ! docker compose version &> /dev/null; then
-        print_error "Docker Compose is not available"
+        print_error "Docker Compose 不可用"
         exit 1
     fi
 }
 
-# Function to ensure backend is running
+# 确保后端正在运行的函数
 ensure_backend_running() {
-    print_info "Checking if backend is running..."
+    print_info "正在检查后端是否运行..."
     if ! docker compose ps backend | grep -q "Up"; then
-        print_info "Starting backend service..."
+        print_info "正在启动后端服务..."
         docker compose up -d backend
         sleep 5
     fi
 }
 
-# Function to run direct CLI command
+# 运行直接 CLI 命令的函数
 run_direct_cli() {
     check_docker_compose
     ensure_backend_running
     docker compose --profile cli run --rm cli python cli_ingest.py "$@"
 }
 
-# Help function
+# 帮助函数
 show_help() {
     cat << EOF
-MAESTRO Direct CLI Helper Script
+MAESTRO 直接命令行辅助脚本
 
-This tool provides DIRECT document processing with live feedback, bypassing the background queue.
-Documents are processed synchronously with real-time progress updates.
+此工具提供带实时反馈的直接文档处理，绕过后台队列。
+文档同步处理，并提供实时进度更新。
 
-Usage: $0 <command> [options]
+用法: $0 <命令> [选项]
 
-Commands:
-  create-user <username> <password> [--full-name "Name"] [--admin]
-    Create a new user account
+命令:
+  create-user <用户名> <密码> [--full-name "姓名"] [--admin]
+    创建一个新的用户账户
 
-  create-group <username> <group_name> [--description "Description"]
-    Create a document group for a user
+  create-group <用户名> <组名> [--description "描述"]
+    为用户创建一个文档组
 
-  list-groups [--user <username>]
-    List document groups
+  list-groups [--user <用户名>]
+    列出文档组
 
-  ingest <username> <document_directory> [--group <group_id>] [--force-reembed] [--device <device>] [--delete-after-success] [--batch-size <num>]
-    DIRECTLY process documents with live feedback (PDF, Word, Markdown)
-    - Supports PDF, Word (docx, doc), and Markdown (md, markdown) files
-    - Shows real-time progress for each document
-    - Processes documents synchronously (no background queue)
-    - Documents are immediately available after processing
-    - Documents added to user library (can be organized into groups later)
-    - Optionally delete source files after successful processing
-    - Control parallel processing with --batch-size (default: 5)
+  ingest <用户名> <文档目录> [--group <组ID>] [--force-reembed] [--device <设备>] [--delete-after-success] [--batch-size <数量>]
+    直接处理文档并提供实时反馈 (PDF, Word, Markdown)
+    - 支持 PDF, Word (docx, doc) 和 Markdown (md, markdown) 文件
+    - 显示每个文档的实时处理进度
+    - 同步处理文档 (无后台队列)
+    - 处理后文档立即可用
+    - 文档添加到用户库 (稍后可整理到组中)
+    - 可选：处理成功后删除源文件
+    - 使用 --batch-size 控制并行处理 (默认: 5)
 
-  status [--user <username>] [--group <group_id>]
-    Check document processing status
+  status [--user <用户名>] [--group <组ID>]
+    检查文档处理状态
 
-  cleanup [--user <username>] [--status <status>] [--group <group_id>] [--confirm]
-    Clean up documents with specific status (e.g., failed, error documents)
-    - Remove failed or error documents from the database
-    - Optionally filter by user and/or group
-    - Use --confirm to skip confirmation prompt
+  cleanup [--user <用户名>] [--status <状态>] [--group <组ID>] [--confirm]
+    清理具有特定状态（例如，失败、错误文档）的文档
+    - 从数据库中删除失败或错误的文档
+    - 可选：按用户和/或组筛选
+    - 使用 --confirm 跳过确认提示
 
   cleanup-cli [--dry-run] [--force]
-    Clean up dangling CLI-ingested documents
-    - Removes documents stuck with 'cli_processing' status (interrupted CLI ingestions)
-    - Deletes associated files and vector store entries
-    - Use --dry-run to see what would be deleted without making changes
-    - Use --force to skip confirmation prompt
+    清理悬挂的 CLI 摄入文档
+    - 删除处于“cli_processing”状态的文档（中断的 CLI 摄入）
+    - 删除关联的文件和向量存储条目
+    - 使用 --dry-run 查看将要删除的内容而不进行更改
+    - 使用 --force 跳过确认提示
 
-  search <username> <query> [--limit <num>]
-    Search through documents for a specific user
+  search <用户名> <查询> [--limit <数量>]
+    搜索特定用户的文档
 
   reset-db [--backup] [--force] [--stats] [--check]
-    Reset ALL databases (main, AI, vector store) and document files
-    CRITICAL: All databases must be reset together to maintain data consistency
-    - --backup: Create timestamped backups before reset
-    - --force: Skip confirmation prompts (DANGEROUS!)
-    - --stats: Show database statistics only (don't reset)
-    - --check: Check data consistency across databases only
+    重置所有数据库（主数据库、AI 数据库、向量存储）和文档文件
+    关键: 所有数据库必须一起重置以保持数据一致性
+    - --backup: 重置前创建带时间戳的备份
+    - --force: 跳过确认提示 (危险!)
+    - --stats: 仅显示数据库统计信息 (不重置)
+    - --check: 仅检查数据库之间的数据一致性
 
   help
-    Show this help message
+    显示此帮助消息
 
-Key Differences from Regular CLI:
-  - DIRECT PROCESSING: Documents are processed immediately with live feedback
-  - REAL-TIME PROGRESS: See each step of processing as it happens
-  - NO QUEUE: Bypasses the background processor for immediate results
-  - LIVE FEEDBACK: Timestamps, progress indicators, and detailed status updates
+与常规 CLI 的主要区别:
+  - 直接处理: 文档立即处理并提供实时反馈
+  - 实时进度: 查看处理过程中的每个步骤
+  - 无队列: 绕过后台处理器以立即获得结果
+  - 实时反馈: 时间戳、进度指示器和详细状态更新
 
-Examples:
-  # Create a user and group
-  $0 create-user researcher mypass123 --full-name "Research User"
-  $0 create-group researcher "AI Papers" --description "Machine Learning Research"
+示例:
+  # 创建用户和组
+  $0 create-user researcher mypass123 --full-name "研究用户"
+  $0 create-group researcher "AI 论文" --description "机器学习研究"
 
-  # Direct document processing with live feedback (no group)
+  # 直接文档处理，带实时反馈 (无组)
   $0 ingest researcher ./documents
 
-  # Process with specific group  
+  # 使用特定组处理
   $0 ingest researcher ./documents --group GROUP_ID
 
-  # Process with specific GPU device
+  # 使用特定 GPU 设备处理
   $0 ingest researcher ./documents --device cuda:0
 
-  # Force re-processing of existing documents
+  # 强制重新嵌入现有文档
   $0 ingest researcher ./documents --force-reembed
 
-  # Check status
+  # 检查状态
   $0 status --user researcher
 
-  # Database management
-  $0 reset-db --stats                    # Show current database statistics
-  $0 reset-db --check                    # Check data consistency
-  $0 reset-db --backup                   # Reset with backup
-  $0 reset-db --force                    # Reset without confirmation
+  # 数据库管理
+  $0 reset-db --stats                    # 显示当前数据库统计信息
+  $0 reset-db --check                    # 检查数据一致性
+  $0 reset-db --backup                   # 重置并备份
+  $0 reset-db --force                    # 重置且不确认
 
-For more detailed help on any command:
-  $0 <command> --help
+有关任何命令的详细帮助:
+  $0 <命令> --help
 
 EOF
 }
@@ -170,8 +172,8 @@ case "$1" in
     "create-user")
         shift
         if [ $# -lt 2 ]; then
-            print_error "create-user requires username and password"
-            echo "Usage: $0 create-user <username> <password> [--full-name \"Name\"] [--admin]"
+            print_error "create-user 需要用户名和密码"
+            echo "用法: $0 create-user <用户名> <密码> [--full-name \"姓名\"] [--admin]"
             exit 1
         fi
         print_info "Creating user '$1'..."
@@ -181,8 +183,8 @@ case "$1" in
     "create-group")
         shift
         if [ $# -lt 2 ]; then
-            print_error "create-group requires username and group name"
-            echo "Usage: $0 create-group <username> <group_name> [--description \"Description\"]"
+            print_error "create-group 需要用户名和组名"
+            echo "用法: $0 create-group <用户名> <组名> [--description \"描述\"]"
             exit 1
         fi
         print_info "Creating group '$2' for user '$1'..."
@@ -203,8 +205,8 @@ case "$1" in
         fi
         
         if [ $# -lt 2 ]; then
-            print_error "ingest requires username and document_directory"
-            echo "Usage: $0 ingest <username> <document_directory> [--group <group_id>] [--force-reembed] [--device <device>] [--delete-after-success] [--batch-size <num>]"
+            print_error "ingest 需要用户名和文档目录"
+            echo "用法: $0 ingest <用户名> <文档目录> [--group <组ID>] [--force-reembed] [--device <设备>] [--delete-after-success] [--batch-size <数量>]"
             exit 1
         fi
         
@@ -290,8 +292,8 @@ case "$1" in
     "search")
         shift
         if [ $# -lt 2 ]; then
-            print_error "search requires username and query"
-            echo "Usage: $0 search <username> <query> [--limit <num>]"
+            print_error "search 需要用户名和查询"
+            echo "用法: $0 search <用户名> <查询> [--limit <数量>]"
             exit 1
         fi
         print_info "Searching documents for user '$1'..."
@@ -346,25 +348,25 @@ case "$1" in
                     exit 0
                     ;;
                 *)
-                    print_error "Unknown option for reset-db: $arg"
-                    echo "Use '$0 reset-db --help' for usage information"
+                    print_error "reset-db 的未知选项: $arg"
+                    echo "使用 '$0 reset-db --help' 获取用法信息"
                     exit 1
                     ;;
             esac
         done
         
-        print_warning "Database reset operates on ALL databases simultaneously!"
-        print_info "This ensures data consistency across all storage systems."
+        print_warning "数据库重置操作同时作用于所有数据库!"
+        print_info "这确保了所有存储系统之间的数据一致性。"
         
-        # Copy the reset script to the container
-        print_info "Copying reset script to Docker container..."
+        # 复制重置脚本到容器
+        print_info "正在复制重置脚本到 Docker 容器..."
         docker cp reset_databases.py maestro-backend:/app/reset_databases.py 2>/dev/null || {
-            print_error "Failed to copy reset script to container. Is maestro-backend running?"
-            print_info "Try starting the backend first: docker compose up -d backend"
+            print_error "复制重置脚本到容器失败。maestro-backend 是否正在运行？"
+            print_info "尝试首先启动后端: docker compose up -d backend"
             exit 1
         }
         
-        # Build the command based on arguments
+        # 根据参数构建命令
         CMD="python /app/reset_databases.py"
         if [ "$BACKUP" = true ]; then
             CMD="$CMD --backup"
@@ -379,21 +381,21 @@ case "$1" in
             CMD="$CMD --check"
         fi
         
-        # Execute the reset script inside the container
-        print_info "Executing database operations inside Docker container..."
+        # 在容器内部执行重置脚本
+        print_info "正在 Docker 容器内部执行数据库操作..."
         
-        # Check if container is running
+        # 检查容器是否正在运行
         if docker ps --format '{{.Names}}' | grep -q '^maestro-backend$'; then
-            # Container is running, use exec
-            # Use -i for interactive input but handle TTY dynamically
+            # 容器正在运行，使用 exec
+            # 使用 -i 进行交互式输入但处理 TTY
             if [ -t 0 ]; then
                 docker exec -it maestro-backend $CMD
             else
                 docker exec -i maestro-backend $CMD
             fi
         else
-            # Container exists but not running, use run
-            print_warning "Backend container is not running. Starting temporary container..."
+            # 容器存在但未运行，使用 run
+            print_warning "后端容器未运行。正在启动临时容器..."
             docker run --rm -it \
                 -v maestro-data:/app/ai_researcher/data \
                 -v ./maestro_backend/data:/app/data \
@@ -402,20 +404,20 @@ case "$1" in
                 $CMD
         fi
         
-        # Clean up - remove the script from container if it's running
+        # 清理 - 如果容器正在运行，则从容器中删除脚本
         if docker ps --format '{{.Names}}' | grep -q '^maestro-backend$'; then
             docker exec maestro-backend rm -f /app/reset_databases.py 2>/dev/null || true
         fi
         
         if [ "$STATS" = false ] && [ "$CHECK" = false ]; then
-            print_success "Database reset completed successfully!"
-            print_info "Recommendation: Restart Docker containers for clean state:"
+            print_success "数据库重置成功完成!"
+            print_info "建议: 重启 Docker 容器以获得干净状态:"
             print_info "  docker compose down && docker compose up -d"
         fi
         ;;
     *)
-        print_error "Unknown command: $1"
-        echo "Use '$0 help' to see available commands"
+        print_error "未知命令: $1"
+        echo "使用 '$0 help' 查看可用命令"
         exit 1
         ;;
 esac

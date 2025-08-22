@@ -1,9 +1,11 @@
-# Use NVIDIA CUDA base image for GPU support (verified available version)
+# 功能说明: MAESTRO 后端 Docker 镜像构建文件。此文件定义了如何构建 MAESTRO 后端的 Docker 镜像，包括安装系统依赖、Python 库、复制应用程序代码，并进行启动脚本设置。
+
+# 使用 NVIDIA CUDA 基础镜像以支持 GPU (已验证可用版本)
 FROM nvidia/cuda:12.4.0-runtime-ubuntu22.04
 
 WORKDIR /app
 
-# Install system dependencies and Python
+# 安装系统依赖和 Python
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     git \
@@ -12,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3-setuptools \
     python3-wheel \
-    # WeasyPrint dependencies
+    # WeasyPrint 依赖
     libpango-1.0-0 \
     libpangoft2-1.0-0 \
     libharfbuzz0b \
@@ -30,30 +32,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     dos2unix \
     && rm -rf /var/lib/apt/lists/*
 
-# Use Python 3.10 as default
+# 使用 Python 3.10 作为默认
 RUN ln -sf /usr/bin/python3.10 /usr/bin/python && \
     ln -sf /usr/bin/pip3 /usr/bin/pip
 
-# Copy requirements first for better caching
+# 首先复制 requirements 以获得更好的缓存效果
 COPY requirements.txt /app/requirements.txt
 
-# Install Python dependencies
+# 安装 Python 依赖
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application code
+# 复制应用程序代码
 COPY . /app/
 
-# Fix line endings for shell scripts (for Windows users)
+# 修复 shell 脚本的行尾 (适用于 Windows 用户)
 RUN find /app -type f -name "*.sh" -exec dos2unix {} \;
 
-# Make the startup script executable
+# 使启动脚本可执行
 RUN chmod +x /app/start.sh
 
-# Set environment variables
+# 设置环境变量
 ENV PYTHONPATH=/app
 
-# Expose port for FastAPI
+# 暴露 FastAPI 的端口
 EXPOSE 8000
 
-# Use the startup script as the default command
+# 使用启动脚本作为默认命令
 CMD ["/app/start.sh"]

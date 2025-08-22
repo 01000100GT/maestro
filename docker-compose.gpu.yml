@@ -1,5 +1,7 @@
-# GPU-enabled override configuration
-# This file extends docker-compose.yml with GPU support for NVIDIA GPUs
+# 功能说明: Docker Compose GPU 版覆盖配置文件。此文件扩展了 `docker-compose.yml`，为 MAESTRO 应用程序的后端、文档处理器和命令行工具增加了 NVIDIA GPU 支持。
+
+# GPU 启用覆盖配置
+# 此文件扩展 docker-compose.yml，为 NVIDIA GPU 提供 GPU 支持
 
 services:
   backend:
@@ -8,7 +10,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ['${BACKEND_GPU_DEVICE:-0}']  
+              device_ids: ['${BACKEND_GPU_DEVICE:-0}']
               capabilities: [gpu]
 
   doc-processor:
@@ -17,7 +19,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ['${DOC_PROCESSOR_GPU_DEVICE:-0}']  
+              device_ids: ['${DOC_PROCESSOR_GPU_DEVICE:-0}']
               capabilities: [gpu]
 
   cli:
@@ -26,10 +28,10 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ['${CLI_GPU_DEVICE:-0}']  
+              device_ids: ['${CLI_GPU_DEVICE:-0}']
               capabilities: [gpu]
 
-  # Optional: Uncomment to add GPU support for local LLM
+  # 可选: 取消注释以添加对本地 LLM 的 GPU 支持
   # local-llm:
   #   deploy:
   #     resources:

@@ -1,10 +1,12 @@
 #!/bin/bash
 
-# Maestro shutdown script
+# 功能说明: MAESTRO 关闭脚本。该脚本用于停止 MAESTRO 应用程序及其所有依赖服务。
 
-echo "🛑 Stopping Maestro..."
+# Maestro 关闭脚本
 
-# Source GPU detection to determine which compose files were used
+echo "🛑 正在停止 Maestro..."
+
+# 引入 GPU 检测脚本以确定使用了哪些 compose 文件
 source ./detect_gpu.sh
 
 if [ "$GPU_SUPPORT" = "nvidia" ]; then
@@ -13,7 +15,7 @@ else
     COMPOSE_FILES="-f docker-compose.yml"
 fi
 
-# Stop services
+# 停止服务
 docker compose $COMPOSE_FILES down
 
-echo "✅ Maestro stopped."
+echo "✅ Maestro 已停止。"

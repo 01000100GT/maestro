@@ -1,65 +1,67 @@
 #!/usr/bin/env pwsh
 
-# MAESTRO - Environment Setup Script for Windows PowerShell
-# This script helps you set up your .env file for the first time
+# 功能说明: 适用于 Windows PowerShell 的 MAESTRO 环境设置脚本。该脚本帮助您首次设置 `.env` 文件，引导完成基本配置。
 
-Write-Host "# MAESTRO - Environment Setup"
+# MAESTRO - 适用于 Windows PowerShell 的环境设置脚本
+# 该脚本帮助您首次设置 .env 文件
+
+Write-Host "# MAESTRO - 环境设置"
 Write-Host "=================================="
 
-# Check if .env already exists
+# 检查 .env 是否已存在
 if (Test-Path ".env") {
-    Write-Host "WARNING: .env file already exists!" -ForegroundColor Yellow
-    $overwrite = Read-Host "Do you want to overwrite it? (y/N)"
+    Write-Host "警告: .env 文件已存在!" -ForegroundColor Yellow
+    $overwrite = Read-Host "您要覆盖它吗？(y/N)"
     if ($overwrite -ne "y" -and $overwrite -ne "Y") {
-        Write-Host "Setup cancelled."
+        Write-Host "设置已取消。"
         exit 0
     }
 }
 
-# Copy .env.example to .env
+# 复制 .env.example 到 .env
 if (-not (Test-Path ".env.example")) {
-    Write-Host "ERROR: .env.example file not found!" -ForegroundColor Red
-    Write-Host "Please make sure you're in the correct directory."
+    Write-Host "错误: 未找到 .env.example 文件!" -ForegroundColor Red
+    Write-Host "请确保您在正确的目录下。"
     exit 1
 }
 
 Copy-Item ".env.example" ".env"
-Write-Host "SUCCESS: Created .env from .env.example" -ForegroundColor Green
+Write-Host "成功: 已从 .env.example 创建 .env" -ForegroundColor Green
 
-# Simplified configuration
+# 简化配置
 Write-Host ""
-Write-Host "MAESTRO Configuration" -ForegroundColor Cyan
+Write-Host "MAESTRO 配置" -ForegroundColor Cyan
 Write-Host ""
 
-# Setup mode selection
-Write-Host "Choose setup mode:"
-Write-Host "1) Simple (localhost only) - Recommended"
-Write-Host "2) Network (access from other devices)"
-Write-Host "3) Custom domain (for reverse proxy)"
-$setupMode = Read-Host "Choice (1-3, default is 1)"
+# 设置模式选择
+Write-Host "选择设置模式:"
+Write-Host "1) 简单 (仅限 localhost) - 推荐"
+Write-Host "2) 网络 (从其他设备访问)"
+Write-Host "3) 自定义域 (用于反向代理)"
+$setupMode = Read-Host "选择 (1-3, 默认为 1)"
 if (-not $setupMode) { $setupMode = "1" }
 
 switch ($setupMode) {
     "2" {
-        # Network setup - try to detect IP
+        # 网络设置 - 尝试检测 IP
         $ip = (Get-NetIPAddress | Where-Object {$_.AddressFamily -eq "IPv4" -and $_.InterfaceAlias -notlike "*Loopback*" -and $_.IPAddress -notlike "169.254.*"}).IPAddress | Select-Object -First 1
         
         if ($ip) {
-            Write-Host "Auto-detected IP: $ip"
-            $useDetected = Read-Host "Use this IP? (Y/n)"
+            Write-Host "自动检测到 IP: $ip"
+            $useDetected = Read-Host "使用此 IP 吗？(Y/n)"
             if ($useDetected -eq "n" -or $useDetected -eq "N") {
-                $ip = Read-Host "Enter IP address"
+                $ip = Read-Host "输入 IP 地址"
             }
         } else {
-            $ip = Read-Host "Enter IP address"
+            $ip = Read-Host "输入 IP 地址"
         }
         
         (Get-Content .env) -replace 'CORS_ALLOWED_ORIGINS=\*', "CORS_ALLOWED_ORIGINS=http://$ip,http://localhost" | Set-Content .env
-        Write-Host "SUCCESS: Configured for network access from: $ip" -ForegroundColor Green
+        Write-Host "成功: 已配置网络访问: $ip" -ForegroundColor Green
     }
     "3" {
-        $domain = Read-Host "Enter your domain (e.g., researcher.local)"
-        $useHttps = Read-Host "Using HTTPS? (y/N)"
+        $domain = Read-Host "输入您的域名 (例如, researcher.local)"
+        $useHttps = Read-Host "使用 HTTPS 吗？(y/N)"
         
         if ($useHttps -eq "y" -or $useHttps -eq "Y") {
             $protocol = "https"
@@ -69,33 +71,33 @@ switch ($setupMode) {
         
         (Get-Content .env) -replace 'CORS_ALLOWED_ORIGINS=\*', "CORS_ALLOWED_ORIGINS=$protocol`://$domain" | Set-Content .env
         (Get-Content .env) -replace 'ALLOW_CORS_WILDCARD=true', 'ALLOW_CORS_WILDCARD=false' | Set-Content .env
-        Write-Host "SUCCESS: Configured for custom domain: $protocol`://$domain" -ForegroundColor Green
+        Write-Host "成功: 已配置自定义域名: $protocol`://$domain" -ForegroundColor Green
     }
     default {
-        Write-Host "SUCCESS: Using simple localhost configuration" -ForegroundColor Green
-        Write-Host "   The application will be accessible at: http://localhost"
+        Write-Host "成功: 正在使用简单的 localhost 配置" -ForegroundColor Green
+        Write-Host "   应用程序将可在以下地址访问: http://localhost"
     }
 }
 
-# Port configuration
+# 端口配置
 Write-Host ""
-$maestroPort = Read-Host "Port for MAESTRO (default: 80)"
+$maestroPort = Read-Host "MAESTRO 端口 (默认: 80)"
 if (-not $maestroPort) { $maestroPort = "80" }
 (Get-Content .env) -replace 'MAESTRO_PORT=80', "MAESTRO_PORT=$maestroPort" | Set-Content .env
 
-# Database Security Configuration
+# 数据库安全配置
 Write-Host ""
-Write-Host "Database Security Setup" -ForegroundColor Cyan
-Write-Host "Choose how to set database passwords:"
-Write-Host "1) Generate secure random passwords (recommended)"
-Write-Host "2) Enter custom passwords"
-Write-Host "3) Skip (use default - NOT RECOMMENDED for production)"
-$passMode = Read-Host "Choice (1-3, default: 1)"
+Write-Host "数据库安全设置" -ForegroundColor Cyan
+Write-Host "选择设置数据库密码的方式:"
+Write-Host "1) 生成安全的随机密码 (推荐)"
+Write-Host "2) 输入自定义密码"
+Write-Host "3) 跳过 (使用默认值 - 不推荐用于生产环境)"
+$passMode = Read-Host "选择 (1-3, 默认: 1)"
 if (-not $passMode) { $passMode = "1" }
 
 switch ($passMode) {
     "1" {
-        # Generate secure random passwords
+        # 生成安全的随机密码
         $postgresPass = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 25 | ForEach-Object {[char]$_})
         $adminPass = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 16 | ForEach-Object {[char]$_})
         $jwtSecret = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 64 | ForEach-Object {[char]$_})
@@ -104,70 +106,70 @@ switch ($passMode) {
         (Get-Content .env) -replace 'ADMIN_PASSWORD=CHANGE_THIS_ADMIN_PASSWORD', "ADMIN_PASSWORD=$adminPass" | Set-Content .env
         (Get-Content .env) -replace 'JWT_SECRET_KEY=GENERATE_A_RANDOM_KEY_DO_NOT_USE_DEFAULT', "JWT_SECRET_KEY=$jwtSecret" | Set-Content .env
         
-        Write-Host "SUCCESS: Generated secure passwords" -ForegroundColor Green
+        Write-Host "成功: 已生成安全密码" -ForegroundColor Green
         Write-Host ""
-        Write-Host "SAVE THESE CREDENTIALS:" -ForegroundColor Yellow
-        Write-Host "   Admin Username: admin" -ForegroundColor Yellow
-        Write-Host "   Admin Password: $adminPass" -ForegroundColor Yellow
+        Write-Host "保存这些凭据:" -ForegroundColor Yellow
+        Write-Host "   管理员用户名: admin" -ForegroundColor Yellow
+        Write-Host "   管理员密码: $adminPass" -ForegroundColor Yellow
         Write-Host ""
-        Write-Host "   Database credentials are stored in .env" -ForegroundColor Gray
+        Write-Host "   数据库凭据存储在 .env 中" -ForegroundColor Gray
     }
     "2" {
-        # Custom passwords
-        $postgresPass = Read-Host "Enter PostgreSQL password" -AsSecureString
-        $postgresPassConfirm = Read-Host "Confirm PostgreSQL password" -AsSecureString
+        # 自定义密码
+        $postgresPass = Read-Host "输入 PostgreSQL 密码" -AsSecureString
+        $postgresPassConfirm = Read-Host "确认 PostgreSQL 密码" -AsSecureString
         
-        # Convert SecureString to plain text for comparison
+        # 将 SecureString 转换为纯文本进行比较
         $postgresPassPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($postgresPass))
         $postgresPassConfirmPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($postgresPassConfirm))
         
         if ($postgresPassPlain -ne $postgresPassConfirmPlain) {
-            Write-Host "ERROR: Passwords don't match. Using defaults." -ForegroundColor Red
+            Write-Host "错误: 密码不匹配。正在使用默认值。" -ForegroundColor Red
         } else {
-            $adminPass = Read-Host "Enter admin password" -AsSecureString
+            $adminPass = Read-Host "输入管理员密码" -AsSecureString
             $adminPassPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($adminPass))
             
-            $jwtSecret = Read-Host "Enter JWT secret (press Enter to generate)"
+            $jwtSecret = Read-Host "输入 JWT 密钥 (按 Enter 生成)"
             if (-not $jwtSecret) {
                 $jwtSecret = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 64 | ForEach-Object {[char]$_})
-                Write-Host "Generated JWT secret" -ForegroundColor Green
+                Write-Host "已生成 JWT 密钥" -ForegroundColor Green
             }
             
             (Get-Content .env) -replace 'POSTGRES_PASSWORD=CHANGE_THIS_PASSWORD_IMMEDIATELY', "POSTGRES_PASSWORD=$postgresPassPlain" | Set-Content .env
             (Get-Content .env) -replace 'ADMIN_PASSWORD=CHANGE_THIS_ADMIN_PASSWORD', "ADMIN_PASSWORD=$adminPassPlain" | Set-Content .env
             (Get-Content .env) -replace 'JWT_SECRET_KEY=GENERATE_A_RANDOM_KEY_DO_NOT_USE_DEFAULT', "JWT_SECRET_KEY=$jwtSecret" | Set-Content .env
             
-            Write-Host "SUCCESS: Custom passwords set" -ForegroundColor Green
+            Write-Host "成功: 已设置自定义密码" -ForegroundColor Green
             Write-Host ""
-            Write-Host "   Admin Username: admin" -ForegroundColor Yellow
-            Write-Host "   Admin Password: [your custom password]" -ForegroundColor Yellow
+            Write-Host "   管理员用户名: admin" -ForegroundColor Yellow
+            Write-Host "   管理员密码: [您的自定义密码]" -ForegroundColor Yellow
         }
     }
     "3" {
-        Write-Host "WARNING: Using default passwords - CHANGE THESE IN PRODUCTION!" -ForegroundColor Yellow
-        Write-Host "   Default admin login: admin / admin123" -ForegroundColor Yellow
+        Write-Host "警告: 正在使用默认密码 - 在生产环境中请务必更改!" -ForegroundColor Yellow
+        Write-Host "   默认管理员登录: admin / admin123" -ForegroundColor Yellow
     }
     default {
-        Write-Host "Invalid choice. Using defaults." -ForegroundColor Red
+        Write-Host "无效选择。正在使用默认值。" -ForegroundColor Red
     }
 }
 
-# Timezone
+# 时区
 Write-Host ""
-Write-Host "Select your timezone:"
-Write-Host "1) America/New_York (Eastern Time)"
-Write-Host "2) America/Chicago (Central Time)"
-Write-Host "3) America/Denver (Mountain Time)"
-Write-Host "4) America/Los_Angeles (Pacific Time)"
-Write-Host "5) Asia/Kolkata (India Standard Time)"
-Write-Host "6) Europe/London (GMT/BST)"
-Write-Host "7) Europe/Paris (CET/CEST)"
-Write-Host "8) Asia/Tokyo (JST)"
-Write-Host "9) Australia/Sydney (AEST/AEDT)"
-Write-Host "10) Other (enter custom timezone)"
-Write-Host "0) Use system default"
+Write-Host "选择您的时区:"
+Write-Host "1) America/New_York (东部时间)"
+Write-Host "2) America/Chicago (中部时间)"
+Write-Host "3) America/Denver (山区时间)"
+Write-Host "4) America/Los_Angeles (太平洋时间)"
+Write-Host "5) Asia/Kolkata (印度标准时间)"
+Write-Host "6) Europe/London (格林威治时间/英国夏令时)"
+Write-Host "7) Europe/Paris (中欧时间/中欧夏令时)"
+Write-Host "8) Asia/Tokyo (日本标准时间)"
+Write-Host "9) Australia/Sydney (澳大利亚东部标准时间/澳大利亚东部夏令时)"
+Write-Host "10) 其他 (输入自定义时区)"
+Write-Host "0) 使用系统默认"
 
-$timezoneChoice = Read-Host "Choice (0-10, default: 2)"
+$timezoneChoice = Read-Host "选择 (0-10, 默认: 2)"
 
 switch ($timezoneChoice) {
     "1" { $timezone = "America/New_York" }
@@ -179,27 +181,27 @@ switch ($timezoneChoice) {
     "7" { $timezone = "Europe/Paris" }
     "8" { $timezone = "Asia/Tokyo" }
     "9" { $timezone = "Australia/Sydney" }
-    "10" { 
+    "10" {
         Write-Host ""
-        Write-Host "Common timezone formats:"
+        Write-Host "常见的时区格式:"
         Write-Host "  - America/New_York"
         Write-Host "  - Asia/Kolkata"
         Write-Host "  - Europe/London"
         Write-Host "  - Asia/Tokyo"
         Write-Host "  - UTC"
         Write-Host "  - GMT"
-        $timezone = Read-Host "Enter your timezone"
+        $timezone = Read-Host "输入您的时区"
         if (-not $timezone) { $timezone = "America/Chicago" }
     }
-    "0" { 
-        # Try to get system timezone
+    "0" {
+        # 尝试获取系统时区
         try {
             $systemTz = [System.TimeZoneInfo]::Local.Id
             $timezone = $systemTz
-            Write-Host "SUCCESS: Using system timezone: $timezone" -ForegroundColor Green
+            Write-Host "成功: 正在使用系统时区: $timezone" -ForegroundColor Green
         } catch {
             $timezone = "America/Chicago"
-            Write-Host "WARNING: Could not detect system timezone, using default: $timezone" -ForegroundColor Yellow
+            Write-Host "警告: 无法检测到系统时区，正在使用默认值: $timezone" -ForegroundColor Yellow
         }
     }
     default { $timezone = "America/Chicago" }
@@ -209,20 +211,20 @@ switch ($timezoneChoice) {
 (Get-Content .env) -replace 'VITE_SERVER_TIMEZONE=America/Chicago', "VITE_SERVER_TIMEZONE=$timezone" | Set-Content .env
 
 Write-Host ""
-Write-Host "SETUP COMPLETE!" -ForegroundColor Green
+Write-Host "设置完成!" -ForegroundColor Green
 Write-Host ""
-Write-Host "Your .env file has been created."
+Write-Host "您的 .env 文件已创建。"
 Write-Host ""
 
-# Windows line ending warning
-Write-Host "WARNING - Windows/WSL Note:" -ForegroundColor Yellow
-Write-Host "   If you encounter 'bad interpreter' errors, run:" -ForegroundColor Yellow
+# Windows 行尾警告
+Write-Host "警告 - Windows/WSL 注意事项:" -ForegroundColor Yellow
+Write-Host "   如果您遇到 'bad interpreter' 错误，请运行:" -ForegroundColor Yellow
 Write-Host "   docker compose down" -ForegroundColor Cyan
 Write-Host "   docker compose build --no-cache" -ForegroundColor Cyan
 Write-Host "   docker compose up -d" -ForegroundColor Cyan
 Write-Host ""
 
-Write-Host "Access MAESTRO at:"
+Write-Host "访问 MAESTRO 地址:"
 if ($maestroPort -eq "80") {
     switch ($setupMode) {
         "2" { Write-Host "  http://$ip" }
@@ -238,20 +240,20 @@ if ($maestroPort -eq "80") {
 }
 Write-Host ""
 if ($passMode -eq "3") {
-    Write-Host "Default login:" -ForegroundColor Cyan
-    Write-Host "  Username: admin"
-    Write-Host "  Password: admin123"
+    Write-Host "默认登录信息:" -ForegroundColor Cyan
+    Write-Host "  用户名: admin"
+    Write-Host "  密码: admin123"
 } else {
-    Write-Host "Login credentials were displayed above" -ForegroundColor Cyan
+    Write-Host "登录凭据已显示在上方" -ForegroundColor Cyan
 }
 Write-Host ""
-Write-Host "Start MAESTRO with:"
+Write-Host "使用以下命令启动 MAESTRO:"
 Write-Host "  docker compose up -d" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "IMPORTANT - First Run:" -ForegroundColor Yellow
-Write-Host "  Initial startup takes 5-10 minutes to download AI models" -ForegroundColor Yellow
-Write-Host "  Monitor progress with: docker compose logs -f maestro-backend" -ForegroundColor Yellow
-Write-Host "  Wait for message: Application startup complete" -ForegroundColor Yellow
+Write-Host "重要 - 首次运行:" -ForegroundColor Yellow
+Write-Host "  首次启动需要 5-10 分钟下载 AI 模型" -ForegroundColor Yellow
+Write-Host "  通过以下命令监控进度: docker compose logs -f maestro-backend" -ForegroundColor Yellow
+Write-Host "  等待消息: Application startup complete" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "To modify settings later:"
-Write-Host "  notepad .env" 
+Write-Host "稍后修改设置:"
+Write-Host "  notepad .env"

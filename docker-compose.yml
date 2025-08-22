@@ -1,5 +1,7 @@
+# 功能说明: Docker Compose 主配置文件。此文件定义了 MAESTRO 应用程序的所有核心 Docker 服务，包括 PostgreSQL 数据库、Nginx 反向代理、后端、前端、文档处理器和命令行工具，并为部分服务提供了 GPU 支持（如配置）。
+
 services:
-  # PostgreSQL database for document management
+  # 用于文档管理的 PostgreSQL 数据库
   postgres:
     image: pgvector/pgvector:pg15
     container_name: maestro-postgres
@@ -21,7 +23,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Nginx reverse proxy - single entry point for the application
+  # Nginx 反向代理 - 应用程序的单一入口点
   nginx:
     build:
       context: ./nginx
@@ -52,7 +54,7 @@ services:
       - ./maestro_datalab_cache:/root/.cache/datalab
       - ./reports:/app/reports
       - ./maestro_backend/data:/app/data
-    # Backend is now only accessible through nginx, not directly exposed
+    # 后端现在只能通过 Nginx 访问，不直接暴露
     # ports:
     #   - "${BACKEND_HOST}:${BACKEND_PORT}:${BACKEND_INTERNAL_PORT}"
     working_dir: /app
@@ -60,36 +62,36 @@ services:
       - MAX_WORKER_THREADS=${MAX_WORKER_THREADS:-10}
       - TZ=${TZ:-UTC}
       - LOG_LEVEL=${LOG_LEVEL:-ERROR}
-      # CORS configuration for reverse proxy support
+      # 反向代理支持的 CORS 配置
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-*}
-      # Allow all origins in development mode when using nginx proxy
+      # 在开发模式下使用 Nginx 代理时允许所有源
       - ALLOW_CORS_WILDCARD=${ALLOW_CORS_WILDCARD:-true}
-      # PostgreSQL connection - uses environment variables
+      # PostgreSQL 连接 - 使用环境变量
       - DATABASE_URL=postgresql://${POSTGRES_USER:-maestro_user}:${POSTGRES_PASSWORD:-maestro_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-maestro_db}
-      # Admin credentials for initial setup
+      # 用于初始设置的管理员凭据
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
-      # JWT Secret for authentication
+      # 用于身份验证的 JWT 密钥
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-this}
     networks:
       - maestro-network
-    # GPU support - uncomment the following lines if you have a GPU and nvidia-container-toolkit installed
+    # GPU 支持 - 如果您有 GPU 并安装了 nvidia-container-toolkit，请取消注释以下行
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ['${BACKEND_GPU_DEVICE:-0}']  
+              device_ids: ['${BACKEND_GPU_DEVICE:-0}']
               capabilities: [gpu]
 
   frontend:
     build:
       context: ./maestro_frontend
       dockerfile: Dockerfile
-      # No build args needed - using relative URLs through nginx proxy
+      # 不需要构建参数 - 默认通过 Nginx 代理使用相对 URL
     image: maestro-frontend
     container_name: maestro-frontend
-    # Frontend is now only accessible through nginx, not directly exposed
+    # 前端现在只能通过 Nginx 访问，不直接暴露
     # ports:
     #   - "${FRONTEND_HOST}:${FRONTEND_PORT}:${FRONTEND_INTERNAL_PORT}"
     depends_on:
@@ -97,7 +99,7 @@ services:
     networks:
       - maestro-network
     environment:
-      # API URLs (optional - using relative URLs through nginx proxy by default)
+      # API URL (可选 - 默认通过 Nginx 代理使用相对 URL)
       - VITE_SERVER_TIMEZONE=${VITE_SERVER_TIMEZONE:-UTC}
       - TZ=${TZ:-UTC}
       - LOG_LEVEL=${LOG_LEVEL:-ERROR}
@@ -106,7 +108,7 @@ services:
     build:
       context: ./maestro_backend
       dockerfile: Dockerfile
-    image: maestro-doc-processor  # Unique image name
+    image: maestro-doc-processor  # 唯一镜像名称
     container_name: maestro-doc-processor
     command: ["python", "-u", "services/background_document_processor.py"]
     working_dir: /app
@@ -123,22 +125,22 @@ services:
     environment:
       - TZ=${TZ:-UTC}
       - LOG_LEVEL=${LOG_LEVEL:-ERROR}
-      # PostgreSQL connection - same as backend
+      # PostgreSQL 连接 - 与后端相同
       - DATABASE_URL=postgresql://${POSTGRES_USER:-maestro_user}:${POSTGRES_PASSWORD:-maestro_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-maestro_db}
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ['${DOC_PROCESSOR_GPU_DEVICE:-0}']  
+              device_ids: ['${DOC_PROCESSOR_GPU_DEVICE:-0}']
               capabilities: [gpu]
 
-  # CLI service for document ingestion and management
+  # 用于文档摄取和管理的 CLI 服务
   cli:
     build:
       context: ./maestro_backend
       dockerfile: Dockerfile
-    image: maestro-cli  # Unique image name
+    image: maestro-cli  # 唯一镜像名称
     container_name: maestro-cli
     working_dir: /app
     volumes:
@@ -147,8 +149,8 @@ services:
       - ./maestro_datalab_cache:/root/.cache/datalab
       - ./reports:/app/reports
       - ./maestro_backend/data:/app/data
-      # Mount a directory for bulk PDF ingestion
-      - ./pdfs:/app/pdfs  # Read-write mount for PDF files (allows deletion after processing)
+      # 挂载用于批量 PDF 摄取的目录
+      - ./pdfs:/app/pdfs  # PDF 文件的读写挂载 (允许处理后删除)
     depends_on:
       - backend
     networks:
@@ -156,25 +158,25 @@ services:
     environment:
       - TZ=${TZ:-UTC}
       - LOG_LEVEL=${LOG_LEVEL:-ERROR}
-      # PostgreSQL connection - same as backend
+      # PostgreSQL 连接 - 与后端相同
       - DATABASE_URL=postgresql://${POSTGRES_USER:-maestro_user}:${POSTGRES_PASSWORD:-maestro_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-maestro_db}
-      # Performance settings from .env (optional, with defaults)
+      # 来自 .env 的性能设置 (可选，带默认值)
       - TRANSFORMERS_VERBOSITY=${TRANSFORMERS_VERBOSITY:-error}
       - TOKENIZERS_PARALLELISM=${TOKENIZERS_PARALLELISM:-false}
       - TF_CPP_MIN_LOG_LEVEL=${TF_CPP_MIN_LOG_LEVEL:-3}
       - PYTHONWARNINGS=${PYTHONWARNINGS:-ignore}
     profiles:
-      - cli  # This service only runs when explicitly requested
-    # GPU support for CLI operations (embedding, etc.)
+      - cli  # 此服务仅在明确请求时运行
+    # CLI 操作的 GPU 支持 (嵌入等)
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ['${CLI_GPU_DEVICE:-0}']  
+              device_ids: ['${CLI_GPU_DEVICE:-0}']
               capabilities: [gpu]
 
-  # Optional: Add a service for local LLM if needed
+  # 可选: 如果需要，为本地 LLM 添加服务
   # local-llm:
   #   image: ghcr.io/ollama/ollama:latest
   #   container_name: local-llm
@@ -183,7 +185,7 @@ services:
   #   ports:
   #     - "${LOCAL_LLM_HOST}:${LOCAL_LLM_PORT}:${LOCAL_LLM_INTERNAL_PORT}"
   #   restart: unless-stopped
-  #   # GPU support for local LLM - uncomment if needed
+  #   # 本地 LLM 的 GPU 支持 - 如果需要，请取消注释
   #   # deploy:
   #   #   resources:
   #   #     reservations:
@@ -195,7 +197,7 @@ services:
 volumes:
   postgres-data:
   maestro-data:
-  maestro-models:  # New volume for models
+  maestro-models:  # 用于模型的新卷
   # ollama-data:
 
 networks:

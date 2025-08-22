@@ -1,40 +1,42 @@
 #!/bin/bash
 
-# Startup script for MAESTRO backend
-# This script initializes the database and runs migrations before starting the FastAPI server
+# 功能说明: MAESTRO 后端启动脚本。此脚本负责初始化数据库、运行必要的迁移（如果适用），然后启动 FastAPI 服务器。
 
-echo "🚀 Starting MAESTRO Backend..."
+# MAESTRO 后端启动脚本
+# 该脚本在启动 FastAPI 服务器之前初始化数据库并运行迁移
 
-# Wait for PostgreSQL to be ready
-echo "⏳ Waiting for PostgreSQL to be ready..."
+echo "🚀 正在启动 MAESTRO 后端..."
+
+# 等待 PostgreSQL 准备就绪
+echo "⏳ 正在等待 PostgreSQL 准备就绪..."
 for i in {1..30}; do
     python -c "
 from database.database import test_connection
 if test_connection():
-    print('✅ PostgreSQL is ready!')
+    print('✅ PostgreSQL 已准备就绪!')
     exit(0)
 " && break
-    echo "Waiting for PostgreSQL... ($i/30)"
+    echo "正在等待 PostgreSQL... ($i/30)"
     sleep 2
 done
 
-# Initialize PostgreSQL database if needed
+# 如果需要，初始化 PostgreSQL 数据库
 if [[ "$DATABASE_URL" == postgresql* ]]; then
-    echo "🐘 Initializing PostgreSQL database..."
+    echo "🐘 正在初始化 PostgreSQL 数据库..."
     python -m database.init_postgres
     
     if [ $? -eq 0 ]; then
-        echo "✅ PostgreSQL initialization completed!"
+        echo "✅ PostgreSQL 初始化完成!"
     else
-        echo "⚠️  PostgreSQL initialization had issues (may be already initialized)"
+        echo "⚠️  PostgreSQL 初始化出现问题 (可能已初始化)"
     fi
 fi
 
-# Skip migrations - PostgreSQL schema is managed via SQL files
-echo "📊 Skipping migrations (PostgreSQL schema managed via SQL files)"
+# 跳过迁移 - PostgreSQL 模式通过 SQL 文件管理
+echo "📊 正在跳过迁移 (PostgreSQL 模式通过 SQL 文件管理)"
 
-# Start the FastAPI server
-echo "🌐 Starting FastAPI server..."
-# Convert LOG_LEVEL to lowercase for uvicorn
+# 启动 FastAPI 服务器
+echo "🌐 正在启动 FastAPI 服务器..."
+# 将 LOG_LEVEL 转换为小写以用于 uvicorn
 UVICORN_LOG_LEVEL=$(echo "${LOG_LEVEL:-error}" | tr '[:upper:]' '[:lower:]')
-exec uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level $UVICORN_LOG_LEVEL --timeout-keep-alive 1800 --timeout-graceful-shutdown 1800 
+exec uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level $UVICORN_LOG_LEVEL --timeout-keep-alive 1800 --timeout-graceful-shutdown 1800
